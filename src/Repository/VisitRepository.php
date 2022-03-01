@@ -6,6 +6,7 @@ use App\Entity\Visit;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\ORM\AbstractQuery;
 use Doctrine\Persistence\ManagerRegistry;
+use JetBrains\PhpStorm\ArrayShape;
 
 /**
  * @method Visit|null find($id, $lockMode = null, $lockVersion = null)
@@ -36,12 +37,18 @@ class VisitRepository extends ServiceEntityRepository
         }
     }
 
-    public function getStatsForUrl($page = 0, $recordsPerPage = 10)
+    #[ArrayShape(['records' => "mixed", 'pages' => "float"])]
+    public function getStatsForUrl($page = 0, $recordsPerPage = 10): array
     {
-        return $this->createQueryBuilder('m')->select('m.url,max(m.datetime) as last_time,count(m.url) as visit_count')->groupBy(
+        $records = $this->createQueryBuilder('m')->select(
+            'm.url,max(m.datetime) as last_time,count(m.url) as visit_count'
+        )->groupBy(
             'm.url'
         )->setFirstResult($page * $recordsPerPage)->setMaxResults($recordsPerPage)->getQuery()->getResult(
             AbstractQuery::HYDRATE_ARRAY
         );
+        $found_rows = $this->createQueryBuilder('m')->select('count(distinct(m.url)) as found_rows')->getQuery(
+        )->getOneOrNullResult();
+        return ['records' => $records, 'pages' => ceil($found_rows['found_rows'] / $recordsPerPage)];
     }
 }
